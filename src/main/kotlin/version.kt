@@ -18,7 +18,7 @@ enum class MinecraftVersion(
     val yarn: Boolean = false,
     val spigot: Boolean = false
 ) {
-    V1_16_4("1.16.4", "snapshot_20201102", true, false, true),
+    V1_16_4("1.16.4", null, true, true, true),
     V1_16_3("1.16.3", "snapshot_20201025", true, false, true),
     V1_16_3_YARN("1.16.3", null, false, true, true),
     V1_16_2("1.16.2", "snapshot_20200812", true, false, true),
@@ -51,6 +51,7 @@ enum class MinecraftVersion(
         val mappings = mutableListOf<Pair<Mappings, String>>()
 
         if (mcpVersion != null) {
+            println("Reading MCP names")
             val obf2srgMappings = if (mcpConfig) {
                 getMCPConfigMappings(mcVersion)
             } else {
@@ -62,15 +63,18 @@ enum class MinecraftVersion(
             mappings.add(Pair(obf2mcp, "mcp"))
         }
         if (spigot) {
+            println("Reading spigot mappings")
             val buildDataCommit = getBuildDataCommit(mcVersion)
             val obf2spigotMappings = downloadSpigotMappings(buildDataCommit)
             mappings.add(Pair(obf2spigotMappings, "spigot"))
         }
         if (yarn) {
+            println("Reading yarn mappings")
             val obf2yarnMappingsSet = getYarnMappings(mcVersion)
             obf2yarnMappingsSet.forEach { (id, m) -> mappings.add(Pair(m, id)) }
         }
 
+        println("Merging mappings")
         val completeMappings = mutableListOf<Pair<String, Mappings>>()
         for (a in mappings) {
             val obf2aMappings = a.first
@@ -119,22 +123,17 @@ enum class MinecraftVersion(
             TSrgUtil.fromSrg(file, File(outputFolder, "$fileName.tsrg"))
         }
 
-        // srg & tsrg
         val generatedMappings = generateMappings()
-        generatedMappings.forEach { pair ->
-            val fileName = pair.first
-            val mappings = pair.second
-            mappings.writeTo(fileName)
-        }
 
         // tiny
         println("$mcVersion: writing tiny mappings to $mcVersion.tiny")
         val tinyMappings = tiny.Mappings()
         generatedMappings.filter { it.first.startsWith("obf2") }.forEach { pair ->
             val name = pair.first.split("2")[1]
-
             tinyMappings.addMappings(name, pair.second)
         }
+        tinyMappings.fixupMappings()
+        tinyMappings.fixSpigotPackages()
         File(outputFolder, "$mcVersion.tiny").bufferedWriter().use {
             for (line in tinyMappings.toStrings()) {
                 it.write(line)

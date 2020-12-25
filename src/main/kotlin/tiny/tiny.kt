@@ -7,6 +7,9 @@ import net.techcable.srglib.MethodData
 import net.techcable.srglib.MethodSignature
 import net.techcable.srglib.mappings.ImmutableMappings
 import net.techcable.srglib.mappings.Mappings
+import java.lang.StringBuilder
+import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  * Merge multiple srglib.Mappings into one tiny.Mappings
@@ -32,6 +35,29 @@ class Mappings(
         }
         mappings.forEachMethod { obf, mapped ->
             getMethod(obf.declaringType.name, obf.name, obf.signature.descriptor).add(namespace, mapped.name)
+        }
+    }
+
+    fun fixupMappings() {
+        println("tiny: fixing nested classes mappings")
+        classes.forEach { classmap ->
+            classes.filter { it.source.startsWith(classmap.source + "$") }.forEach { subclassmap ->
+                classmap.mappings.filterNot { subclassmap.mappings.containsKey(it.key) }.forEach { (namespace, name) ->
+                    val mapped = name + subclassmap.source.substring((classmap.source).length)
+                    subclassmap.add(namespace, mapped)
+                }
+            }
+        }
+    }
+
+    fun fixSpigotPackages() {
+        val aSpigotMap = classes.first().mappings["spigot"]
+        if(aSpigotMap.isNullOrEmpty()) return
+        println("tiny: fixing spigot package mapping")
+        val parts = aSpigotMap.split('.').toTypedArray()
+        val inferredPackage = parts.copyOf(parts.size - 1).joinToString(separator = ".")
+        classes.filter { it.mappings["spigot"] == null }.forEach {
+            it.add("spigot", inferredPackage + "." + it.source)
         }
     }
 
@@ -132,7 +158,9 @@ interface EntryMapping {
     operator fun get(namespace: String): String? = mappings[namespace]
 
     fun toString(namespaces: List<String>): String {
-        val line = namespaces.joinToString("\t") { get(it) ?: source }
+        val line = namespaces.joinToString("\t") {
+            get(it) ?: source
+        }
         val kind = when (this) {
             is ClassMapping -> "CLASS"
             is FieldMapping -> "FIELD"
