@@ -132,7 +132,7 @@ enum class MinecraftVersion(
             val name = pair.first.split("2")[1]
             tinyMappings.addMappings(name, pair.second)
         }
-        tinyMappings.fixupMappings()
+        tinyMappings.fixNestedClasses()
         tinyMappings.fixSpigotPackages()
         File(outputFolder, "$mcVersion.tiny").bufferedWriter().use {
             for (line in tinyMappings.toStrings()) {

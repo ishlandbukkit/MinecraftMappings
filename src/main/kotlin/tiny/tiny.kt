@@ -38,7 +38,7 @@ class Mappings(
         }
     }
 
-    fun fixupMappings() {
+    fun fixNestedClasses() {
         println("tiny: fixing nested classes mappings")
         classes.forEach { classmap ->
             classes.filter { it.source.startsWith(classmap.source + "$") }.forEach { subclassmap ->
@@ -56,9 +56,10 @@ class Mappings(
         println("tiny: fixing spigot package mapping")
         val parts = aSpigotMap.split('.').toTypedArray()
         val inferredPackage = parts.copyOf(parts.size - 1).joinToString(separator = ".")
-        classes.filter { it.mappings["spigot"] == null }.forEach {
-            it.add("spigot", inferredPackage + "." + it.source)
+        classes.filter { it.source.startsWith("net.minecraft.server.MinecraftServer") }.forEach {
+            it.add("spigot", inferredPackage + it.source.substring("net.minecraft.server".length))
         }
+        getClass("net.minecraft.server.MinecraftServer").add("spigot", "$inferredPackage.MinecraftServer")
     }
 
     fun getClass(source: String): ClassMapping {
